@@ -1,0 +1,48 @@
+services:
+
+  officer:
+    image: 876132155989.dkr.ecr.eu-west-2.amazonaws.com/capdm/deck-chores:latest
+    restart: unless-stopped
+    environment:
+      TIMEZONE: GMT
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  webserver:
+    image: "moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION:-8.4}"
+    depends_on:
+      - db
+    volumes:
+      - "${MOODLE_DOCKER_WWWROOT}:/var/www/html"
+    ports:
+      - "${MOODLE_DOCKER_WEB_PORT}:80"
+    environment:
+      MOODLE_DOCKER_RUNNING: 1
+      MOODLE_DOCKER_DBTYPE: mysqli
+      MOODLE_DOCKER_DBCOLLATION: utf8mb4_bin
+      MOODLE_DOCKER_DBNAME: moodle
+      MOODLE_DOCKER_DBUSER: moodle
+      MOODLE_DOCKER_DBPASS: "m@0dl3ing"
+      MOODLE_DOCKER_WEB_HOST: "${MOODLE_DOCKER_WEB_HOST}"
+    labels:
+      deck-chores.moodle-cron.command: /usr/local/bin/php /var/www/html/admin/cli/cron.php
+      deck-chores.moodle-cron.interval: every minute
+      deck-chores.moodle-cron.user: www-data
+      deck-chores.moodle-cron.max: 4
+
+  db:
+    image: "mysql:${MOODLE_DOCKER_DB_VERSION:-8.4}"
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_bin
+      --skip-log-bin
+    volumes:
+      - "${MOODLE_DB_ROOT}:/var/lib/mysql"
+    environment:
+      MYSQL_ROOT_PASSWORD: "m@0dl3ing"
+      MYSQL_USER: moodle
+      MYSQL_PASSWORD: "m@0dl3ing"
+      MYSQL_DATABASE: moodle
+
+  mlbackend:
+    image: "moodlehq/moodle-mlbackend-python:3.0.5-python3.7.5"
